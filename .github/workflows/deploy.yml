@@ -39,17 +39,39 @@ jobs:
           npx capacitor-assets generate --android --iconBackgroundColor '#1f4e79' --splashBackgroundColor '#1f4e79' || echo "ikon üretimi atlandı"
           npx cap sync android
 
-      - name: İmza anahtarı (varsa)
+      # Her sürüm aynı anahtarla imzalanmalı; yoksa telefondaki uygulama güncellenemez.
+      # Anahtar Gradle'a açıkça verilir; secret yoksa derleme durur (rastgele anahtarla APK çıkmaz).
+      - name: Sabit imza anahtarı
         env:
           KS: ${{ secrets.DEBUG_KEYSTORE_B64 }}
         run: |
-          if [ -n "$KS" ]; then mkdir -p ~/.android && echo "$KS" | base64 -d > ~/.android/debug.keystore && echo "Sabit anahtar kullanılıyor"; fi
+          if [ -z "$KS" ]; then echo "DEBUG_KEYSTORE_B64 secret yok"; exit 1; fi
+          echo "$KS" | base64 -d > "$RUNNER_TEMP/minipuantaj.keystore"
+          cat >> android/app/build.gradle <<GRADLE
+
+          android {
+              signingConfigs {
+                  sabit {
+                      storeFile file("$RUNNER_TEMP/minipuantaj.keystore")
+                      storePassword "android"
+                      keyAlias "androiddebugkey"
+                      keyPassword "android"
+                  }
+              }
+              buildTypes {
+                  debug { signingConfig signingConfigs.sabit }
+              }
+          }
+          GRADLE
+          tail -16 android/app/build.gradle
 
       - name: APK derle
         working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
+          # imzayı doğrula ve parmak izini logla
+          "$ANDROID_HOME"/build-tools/$(ls "$ANDROID_HOME"/build-tools | sort -V | tail -1)/apksigner verify --print-certs app/build/outputs/apk/debug/app-debug.apk | grep -i "SHA-256"
 
       - name: Site klasörünü hazırla
         run: |
