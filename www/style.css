@@ -120,3 +120,6 @@ select,input,textarea{font:inherit;color:var(--text)}
 .grid tbody.kayit tr:last-child td{border-bottom:1px solid #b9c4d0}
 .grid tbody.kayit tr.aciklama td{padding-top:0;color:#c00;font-weight:600}
 .grid tbody.kayit.selected td{background:var(--sel)}
+
+.xlbtn{display:inline-flex;align-items:center;gap:6px}
+.xlicon{width:20px;height:20px;flex:0 0 auto}

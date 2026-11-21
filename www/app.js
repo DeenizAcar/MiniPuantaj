@@ -241,37 +241,96 @@
     });
   }
 
-  /* ---------- Yedekle / Geri Yükle ---------- */
-  function yedekle() {
-    var veri = { uygulama: 'MiniPuantaj', surum: 1, zaman: new Date().toISOString(), personel: personel, arsiv: arsiv };
-    var json = JSON.stringify(veri, null, 1);
-    var dataUrl = 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(json)));
-    paylas(dataUrl, 'minipuantaj_yedek_' + gunAnahtar() + '.json', 'Mini Puantaj Yedeği', 'Yedek dosyası indirildi.')
-      .catch(function (e) { console.error(e); toast('Yedek alınamadı.'); });
+  /* ---------- Excel Dışa Aktar / İçe Aktar ---------- */
+  var xlsxSoz = null;
+  function xlsxYukle() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (!xlsxSoz) xlsxSoz = new Promise(function (ok, hata) {
+      var s = document.createElement('script'); s.src = 'vendor/xlsx.full.min.js';
+      s.onload = function () { ok(window.XLSX); };
+      s.onerror = function () { xlsxSoz = null; hata(new Error('xlsx yüklenemedi')); };
+      document.head.appendChild(s);
+    });
+    return xlsxSoz;
   }
-  function geriYukle(dosya) {
-    var r = new FileReader();
-    r.onload = function () {
-      var v;
-      try { v = JSON.parse(r.result); } catch (e) { v = null; }
-      if (!v || !Array.isArray(v.personel) || !Array.isArray(v.arsiv)) { toast('Geçerli bir yedek dosyası değil.'); return; }
-      onay('Geri Yükle', 'Yedekteki ' + v.personel.length + ' personel ve ' + v.arsiv.length +
-        ' arşiv kaydı mevcut verilere eklensin mi? (Var olan kayıtlar silinmez)', function () {
-        var pEk = 0, aEk = 0;
-        v.personel.forEach(function (p) {
-          if (!p || !p.ad) return;
-          var var_ = personel.some(function (q) { return q.id === p.id || trKucuk(q.ad) === trKucuk(p.ad); });
-          if (!var_) { personel.push({ id: p.id || uid(), ad: p.ad, cinsiyet: p.cinsiyet || 'Bilinmiyor', pasif: !!p.pasif }); pEk++; }
-        });
-        v.arsiv.forEach(function (a) {
-          if (!a || !a.zaman || !Array.isArray(a.kayitlar)) return;
-          if (!arsiv.some(function (q) { return q.id === a.id; })) { arsiv.push(a); aEk++; }
-        });
-        kaydetPersonel(); kaydetArsiv(); renderTanim();
-        toast(pEk + ' personel, ' + aEk + ' arşiv kaydı eklendi.');
+  var DURUM_GERI = { 'gelmedi': 'GELMEDİ', 'geldi': 'GELDİ', 'bilinmiyor': 'BİLİNMİYOR' };
+  var CINS_GERI = { 'erkek': 'Erkek', 'kadın': 'Kadın', 'kadin': 'Kadın', 'bilinmiyor': 'Bilinmiyor' };
+
+  function disaAktar() {
+    xlsxYukle().then(function (X) {
+      var pRows = personel.slice().sort(adSirala).map(function (p) {
+        return { 'Adı Soyadı': p.ad, 'Cinsiyeti': p.cinsiyet, 'Durumu': p.pasif ? 'Pasif' : 'Aktif' };
       });
-    };
-    r.readAsText(dosya);
+      var aRows = arsiv.slice().sort(function (a, b) { return a.zaman < b.zaman ? 1 : -1; }).map(function (a) {
+        var d = new Date(a.zaman);
+        return { 'Gönderme Zamanı': tarihYaz(d) + ' ' + saatYaz(d),
+          'Personel Durumu': a.kayitlar.map(function (k) { return k.ad + ' - ' + (DURUM_BASLIK[k.durum] || k.durum); }).join(', '),
+          'Açıklama': a.aciklama || '', 'Kayıt No': a.id };
+      });
+      var wb = X.utils.book_new();
+      var ws1 = X.utils.json_to_sheet(pRows, { header: ['Adı Soyadı', 'Cinsiyeti', 'Durumu'] });
+      ws1['!cols'] = [{ wch: 32 }, { wch: 12 }, { wch: 10 }];
+      var ws2 = X.utils.json_to_sheet(aRows, { header: ['Gönderme Zamanı', 'Personel Durumu', 'Açıklama', 'Kayıt No'] });
+      ws2['!cols'] = [{ wch: 18 }, { wch: 90 }, { wch: 40 }, { wch: 14 }];
+      X.utils.book_append_sheet(wb, ws1, 'Personel');
+      X.utils.book_append_sheet(wb, ws2, 'Arşiv');
+      var b64 = X.write(wb, { bookType: 'xlsx', type: 'base64' });
+      var mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      return paylas('data:' + mime + ';base64,' + b64, 'minipuantaj_' + gunAnahtar() + '.xlsx', 'Mini Puantaj Excel', 'Excel dosyası indirildi.');
+    }).catch(function (e) { console.error(e); toast('Dışa aktarılamadı.'); });
+  }
+
+  function hucre(row, adlar) {
+    for (var i = 0; i < adlar.length; i++) {
+      for (var k in row) if (trKucuk(k).replace(/\s+/g, ' ').trim() === adlar[i]) return row[k];
+    }
+    return undefined;
+  }
+  function zamanCoz(v) {
+    if (v instanceof Date) return v;
+    var m = String(v || '').trim().match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+    if (!m) return null;
+    return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0));
+  }
+  function durumCoz(metin) {
+    return String(metin || '').split(/\s*,\s*/).map(function (parca) {
+      var i = parca.lastIndexOf(' - '); if (i < 0) return null;
+      var ad = parca.slice(0, i).trim(), d = DURUM_GERI[trKucuk(parca.slice(i + 3).trim())];
+      return ad && d ? { ad: ad, durum: d } : null;
+    }).filter(Boolean);
+  }
+
+  function iceAktar(dosya) {
+    Promise.all([xlsxYukle(), dosya.arrayBuffer()]).then(function (r) {
+      var X = r[0], wb = X.read(r[1], { type: 'array', cellDates: true });
+      var sPers = wb.Sheets['Personel'] || wb.Sheets[wb.SheetNames[0]];
+      var sArs = wb.Sheets['Arşiv'];
+      var yeniP = [], yeniA = [];
+      var ayniAd = function (liste, ad) { return liste.some(function (q) { return trKucuk(q.ad) === trKucuk(ad); }); };
+      if (sPers) X.utils.sheet_to_json(sPers, { defval: '' }).forEach(function (row) {
+        var ad = String(hucre(row, ['adı soyadı', 'adi soyadi', 'ad soyad', 'isim soyisim', 'isim']) || row[Object.keys(row)[0]] || '').replace(/\s+/g, ' ').trim();
+        if (!ad || ayniAd(personel, ad) || ayniAd(yeniP, ad)) return;
+        var cins = CINS_GERI[trKucuk(String(hucre(row, ['cinsiyeti', 'cinsiyet']) || '').trim())] || 'Bilinmiyor';
+        var pasif = trKucuk(String(hucre(row, ['durumu', 'durum']) || '')).trim() === 'pasif';
+        yeniP.push({ id: uid(), ad: ad, cinsiyet: cins, pasif: pasif });
+      });
+      if (sArs) X.utils.sheet_to_json(sArs, { defval: '' }).forEach(function (row) {
+        var z = zamanCoz(hucre(row, ['gönderme zamanı'])); if (!z || isNaN(z)) return;
+        var kay = durumCoz(hucre(row, ['personel durumu'])); if (!kay.length) return;
+        var id = String(hucre(row, ['kayıt no']) || '').trim() || ('x' + z.getTime().toString(36));
+        if (arsiv.some(function (q) { return q.id === id; }) || yeniA.some(function (q) { return q.id === id; })) return;
+        kay.sort(function (a, b) { return (SIRA[a.durum] - SIRA[b.durum]) || adSirala(a, b); });
+        yeniA.push({ id: id, zaman: z.toISOString(), kayitlar: kay, aciklama: String(hucre(row, ['açıklama']) || '') });
+      });
+      if (!yeniP.length && !yeniA.length) { toast('Dosyada eklenecek yeni kayıt bulunamadı.'); return; }
+      onay('İçe Aktar', yeniP.length + ' yeni personel ve ' + yeniA.length +
+        ' yeni arşiv kaydı eklensin mi? (Var olan kayıtlar silinmez)', function () {
+        yeniP.forEach(function (p) { personel.push(p); taslak[p.id] = VARSAYILAN; });
+        yeniA.forEach(function (a) { arsiv.push(a); });
+        kaydetPersonel(); kaydetArsiv(); renderTanim();
+        toast(yeniP.length + ' personel, ' + yeniA.length + ' arşiv kaydı eklendi.');
+      });
+    }).catch(function (e) { console.error(e); toast('Dosya okunamadı. Excel (.xlsx) dosyası seçiniz.'); });
   }
   function indir(dataUrl, ad) { var a = document.createElement('a'); a.href = dataUrl; a.download = ad; document.body.appendChild(a); a.click(); a.remove(); }
 
@@ -412,9 +471,9 @@
   $('txtAra').addEventListener('input', renderTanim);
   $('btnAraTemizle').addEventListener('click', function () { $('txtAra').value = ''; renderTanim(); });
   $('btnTanimKapat').addEventListener('click', function () { ekranGoster('scrMain'); });
-  $('btnYedekle').addEventListener('click', yedekle);
-  $('btnGeriYukle').addEventListener('click', function () { $('inpYedek').value = ''; $('inpYedek').click(); });
-  $('inpYedek').addEventListener('change', function () { if (this.files && this.files[0]) geriYukle(this.files[0]); });
+  $('btnDisaAktar').addEventListener('click', disaAktar);
+  $('btnIceAktar').addEventListener('click', function () { $('inpIceAktar').value = ''; $('inpIceAktar').click(); });
+  $('inpIceAktar').addEventListener('change', function () { if (this.files && this.files[0]) iceAktar(this.files[0]); });
 
   /* ---------- ARŞİV ---------- */
   var DURUM_BASLIK = { 'GELMEDİ': 'Gelmedi', 'GELDİ': 'Geldi', 'BİLİNMİYOR': 'Bilinmiyor' };
