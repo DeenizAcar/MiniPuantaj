@@ -358,9 +358,12 @@
     tr.classList.add('selected');
   }
 
-  var menuSil = null;
-  function menuAc(x, y, silFn) {
-    var m = $('popMenu'); menuSil = silFn;
+  var menuSil = null, menuEk = null;
+  // ek: { yazi, fn } verilirse menüde 2. sırada gösterilir
+  function menuAc(x, y, silFn, ek) {
+    var m = $('popMenu'); menuSil = silFn; menuEk = ek ? ek.fn : null;
+    $('popEk').textContent = ek ? ek.yazi : '';
+    $('popEk').classList.toggle('hidden', !ek);
     m.classList.remove('hidden');
     var w = m.offsetWidth, h = m.offsetHeight;
     m.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + 'px';
@@ -368,12 +371,13 @@
     $('overlay').classList.remove('hidden'); $('overlay').style.background = 'transparent';
   }
   function menuKapat() {
-    $('popMenu').classList.add('hidden'); menuSil = null;
+    $('popMenu').classList.add('hidden'); menuSil = null; menuEk = null;
     if (!acikDialog()) { $('overlay').classList.add('hidden'); }
     $('overlay').style.background = '';
   }
   $('popVazgec').addEventListener('click', menuKapat);
   $('popSil').addEventListener('click', function () { var f = menuSil; menuKapat(); if (f) f(); });
+  $('popEk').addEventListener('click', function () { var f = menuEk; menuKapat(); if (f) f(); });
 
   /* ---------- Pencereler ---------- */
   function acikDialog() { return document.querySelector('.dialog:not(.hidden)'); }
@@ -438,6 +442,14 @@
             delete taslak[p.id];
             kaydetPersonel(); renderTanim(); toast('Personel silindi.');
           });
+        }, {
+          yazi: p.pasif ? 'Aktif Yap' : 'Pasif Yap',
+          fn: function () {
+            p.pasif = !p.pasif;
+            if (!p.pasif && !taslak[p.id]) taslak[p.id] = VARSAYILAN;
+            kaydetPersonel(); renderTanim();
+            toast('“' + p.ad + '” ' + (p.pasif ? 'pasif yapıldı.' : 'aktif yapıldı.'));
+          }
         });
       }, function () { personelDialog(p); });
       tb.appendChild(tr);
