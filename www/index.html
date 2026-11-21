@@ -88,6 +88,7 @@
         <option>Erkek</option><option>Kadın</option><option selected>Bilinmiyor</option>
       </select>
     </label>
+    <label class="chk"><input id="inpPasif" type="checkbox"> Pasife Al</label>
     <div id="dlgPersonelErr" class="err"></div>
   </div>
   <div class="dlg-btns"><button class="btn" data-close>Vazgeç</button><button id="btnPersonelKaydet" class="btn primary">Kaydet</button></div>
@@ -96,7 +97,7 @@
 <!-- Personel durum görüntüleme -->
 <div id="dlgDurum" class="dialog yellow hidden">
   <div class="dlg-title"><span>Personel Durum Görüntüleme</span><button class="xbtn dark" data-close>✕</button></div>
-  <div class="dlg-body"><textarea id="txtDurumGoster" readonly rows="8"></textarea></div>
+  <div class="dlg-body"><table class="grid view"><thead><tr><th>Adı Soyadı</th><th class="c-durum">Durumu</th><th class="c-sym"></th></tr></thead><tbody id="durumGosterBody"></tbody></table></div>
   <div class="dlg-btns"><button class="btn primary" data-close>Tamam</button></div>
 </div>
 

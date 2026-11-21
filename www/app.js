@@ -8,6 +8,12 @@
   var RENK = { 'GELMEDİ': 'red', 'GELDİ': 'green', 'BİLİNMİYOR': 'gray' };
   var GUNLER = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 
+  // yüzsüz porte simgeleri
+  var IKON = {
+    'Erkek': '<svg class="gicon" viewBox="0 0 24 24" aria-label="Erkek"><circle cx="12" cy="7.5" r="4.5" fill="#1f6fb5"/><path d="M3.5 22c0-5 3.8-8.5 8.5-8.5s8.5 3.5 8.5 8.5z" fill="#1f6fb5"/></svg>',
+    'Kadın': '<svg class="gicon" viewBox="0 0 24 24" aria-label="Kadın"><path d="M12 2.2c-3.4 0-5.6 2.6-5.6 6 0 2.2-.6 4-1.6 5.3 1.6.6 3.3.8 4.6.7a5 5 0 0 0 5.2 0c1.3.1 3-.1 4.6-.7-1-1.3-1.6-3.1-1.6-5.3 0-3.4-2.2-6-5.6-6z" fill="#c2185b"/><path d="M12 15c-3.5 0-6.2 2.4-7.5 7h15c-1.3-4.6-4-7-7.5-7z" fill="#c2185b"/></svg>'
+  };
+
   var K_PERSONEL = 'mp_personel', K_GUNLUK = 'mp_gunluk', K_ARSIV = 'mp_arsiv';
 
   var $ = function (id) { return document.getElementById(id); };
@@ -21,6 +27,7 @@
 
   var personel = oku(K_PERSONEL, []);  // [{id, ad, cinsiyet}]
   var arsiv = oku(K_ARSIV, []);        // [{id, zaman, kayitlar:[{ad,durum}], aciklama}]
+  function aktifPersonel() { return personel.filter(function (p) { return !p.pasif; }); }
   function kaydetPersonel() { yaz(K_PERSONEL, personel); }
   function kaydetArsiv() { yaz(K_ARSIV, arsiv); }
 
@@ -75,7 +82,7 @@
     $('mainDate').textContent = tarihYaz(now) + ' ' + GUNLER[now.getDay()];
     $('mainSent').textContent = gunluk.gonderildi ? ('Rapor gönderildi: ' + saatYaz(new Date(gunluk.zaman))) : '';
 
-    var liste = personel.slice().sort(adSirala);
+    var liste = aktifPersonel().sort(adSirala);
     var tb = $('mainBody'); tb.innerHTML = '';
     $('mainEmpty').classList.toggle('hidden', liste.length > 0);
     liste.forEach(function (p) {
@@ -86,7 +93,7 @@
       var opts = DURUMLAR.map(function (x) { return '<option' + (x === d ? ' selected' : '') + '>' + x + '</option>'; }).join('');
       tr.innerHTML = '<td><div class="clamp">' + esc(p.ad) + (yeni ? '<span class="newtag">(yeni eklendi)</span>' : '') + '</div></td>' +
         '<td><select>' + opts + '</select></td>' +
-        '<td style="text-align:center"><span class="dot ' + RENK[d] + '"></span></td>';
+        '<td class="c-sym"><span class="dot ' + RENK[d] + '"></span></td>';
       var sel = tr.querySelector('select'), dot = tr.querySelector('.dot');
       sel.addEventListener('change', function () { taslak[p.id] = sel.value; dot.className = 'dot ' + RENK[sel.value]; });
       tb.appendChild(tr);
@@ -94,7 +101,7 @@
   }
 
   function raporListesi() {
-    return personel.map(function (p) { return { ad: p.ad, durum: taslak[p.id] || VARSAYILAN }; })
+    return aktifPersonel().map(function (p) { return { ad: p.ad, durum: taslak[p.id] || VARSAYILAN }; })
       .sort(function (a, b) { return (SIRA[a.durum] - SIRA[b.durum]) || adSirala(a, b); });
   }
 
@@ -102,16 +109,16 @@
   function gonder() {
     if (gonderiliyor) return;
     gunKontrol();
-    if (!personel.length) { toast('Önce personel tanımlayınız.'); return; }
+    if (!aktifPersonel().length) { toast('Önce aktif personel tanımlayınız.'); return; }
     gonderiliyor = true;
     var zaman = new Date();
     var aciklama = $('txtAciklama').value.trim();
     var kayitlar = raporListesi();
 
     var durumlar = {};
-    personel.forEach(function (p) { durumlar[p.id] = taslak[p.id] || VARSAYILAN; });
+    aktifPersonel().forEach(function (p) { durumlar[p.id] = taslak[p.id] || VARSAYILAN; });
     gunluk = { tarih: aktifGun, gonderildi: true, zaman: zaman.toISOString(), durumlar: durumlar, aciklama: aciklama,
-      kayitliIdler: personel.map(function (p) { return p.id; }) };
+      kayitliIdler: aktifPersonel().map(function (p) { return p.id; }) };
     yaz(K_GUNLUK, gunluk);
     arsiv.push({ id: uid(), zaman: zaman.toISOString(), kayitlar: kayitlar, aciklama: aciklama });
     kaydetArsiv();
@@ -140,10 +147,8 @@
     x.fillStyle = '#1f4e79'; x.fillRect(0, 0, W, HDR);
     x.fillStyle = '#fff'; x.textBaseline = 'middle';
     x.font = 'bold 44px ' + FONT; x.fillText('Personel Durum Raporu', P, 50);
-    x.font = '32px ' + FONT;
-    x.fillText('Tarih: ' + tarihYaz(zaman) + ' ' + GUNLER[zaman.getDay()], P, 108);
-    var st = 'Rapor Saati: ' + saatYaz(zaman);
-    x.fillText(st, W - P - x.measureText(st).width, 108);
+    x.font = 'bold 32px ' + FONT;
+    x.fillText('Tarih: ' + tarihYaz(zaman) + ' ' + GUNLER[zaman.getDay()] + ' / Rapor Saati: ' + saatYaz(zaman), P, 108);
 
     // tablo başlığı
     var y = HDR, cNo = P, cAd = P + 70, cDur = 680, cSym = 960;
@@ -330,7 +335,9 @@
     bos.innerHTML = personel.length ? 'Aramaya uyan personel bulunamadı.' : 'Henüz personel yok.<br>“Personel Ekle” ile ekleyebilirsiniz.';
     liste.forEach(function (p) {
       var tr = document.createElement('tr');
-      tr.innerHTML = '<td><div class="clamp">' + esc(p.ad) + '</div></td><td>' + esc(p.cinsiyet) + '</td>';
+      tr.innerHTML = '<td><div class="clamp"><span class="pname' + (p.pasif ? ' pasif' : '') + '">' + esc(p.ad) + '</span>' +
+        (p.pasif ? '<span class="pasiftag">(PASİF)</span>' : '') + '</div></td>' +
+        '<td><span class="cins">' + esc(p.cinsiyet) + (IKON[p.cinsiyet] || '') + '</span></td>';
       satirEtkilesim(tr, function (r, x, y) {
         menuAc(x, y, function () {
           onay('Personel Sil', '“' + p.ad + '” silinsin mi?', function () {
@@ -350,6 +357,7 @@
     $('dlgPersonelTitle').textContent = p ? 'Personel Düzenle' : 'Personel Ekle';
     $('inpAd').value = p ? p.ad : '';
     $('inpCins').value = p ? p.cinsiyet : 'Bilinmiyor';
+    $('inpPasif').checked = !!(p && p.pasif);
     $('dlgPersonelErr').textContent = '';
     dialogAc('dlgPersonel');
     setTimeout(function () { $('inpAd').focus(); }, 50);
@@ -359,8 +367,9 @@
     if (!ad) { $('dlgPersonelErr').textContent = 'Adı soyadı boş olamaz.'; return; }
     var ayni = personel.some(function (q) { return q !== duzenlenen && trKucuk(q.ad) === trKucuk(ad); });
     if (ayni) { $('dlgPersonelErr').textContent = 'Bu isimde bir personel zaten var.'; return; }
-    if (duzenlenen) { duzenlenen.ad = ad; duzenlenen.cinsiyet = $('inpCins').value; }
-    else { var y = { id: uid(), ad: ad, cinsiyet: $('inpCins').value }; personel.push(y); taslak[y.id] = VARSAYILAN; }
+    var pasif = $('inpPasif').checked;
+    if (duzenlenen) { duzenlenen.ad = ad; duzenlenen.cinsiyet = $('inpCins').value; duzenlenen.pasif = pasif; }
+    else { var y = { id: uid(), ad: ad, cinsiyet: $('inpCins').value, pasif: pasif }; personel.push(y); taslak[y.id] = VARSAYILAN; }
     kaydetPersonel(); dialogKapat('dlgPersonel'); renderTanim();
   }
   $('btnPersonelKaydet').addEventListener('click', personelKaydet);
@@ -389,7 +398,10 @@
           });
         });
       }, function () {
-        $('txtDurumGoster').value = a.kayitlar.map(function (k) { return k.ad + ' - ' + k.durum; }).join('\n');
+        $('durumGosterBody').innerHTML = a.kayitlar.map(function (k) {
+          return '<tr><td><div class="clamp">' + esc(k.ad) + '</div></td><td class="durumtxt">' + esc(k.durum) + '</td>' +
+            '<td class="c-sym"><span class="dot ' + RENK[k.durum] + '"></span></td></tr>';
+        }).join('');
         dialogAc('dlgDurum');
       });
       tb.appendChild(tr);
