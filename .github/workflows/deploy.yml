@@ -38,6 +38,9 @@ jobs:
           npx cap add android
           npx capacitor-assets generate --android --iconBackgroundColor '#1f4e79' --splashBackgroundColor '#1f4e79' || echo "ikon üretimi atlandı"
           npx cap sync android
+          # her yayında sürüm artar: 1.0.<derleme no>
+          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+          grep -E "versionCode|versionName" android/app/build.gradle
 
       # Her sürüm aynı anahtarla imzalanmalı; yoksa telefondaki uygulama güncellenemez.
       # Anahtar Gradle'a açıkça verilir; secret yoksa derleme durur (rastgele anahtarla APK çıkmaz).
