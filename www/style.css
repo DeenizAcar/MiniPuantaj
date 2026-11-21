@@ -150,3 +150,14 @@ select,input,textarea{font:inherit;color:var(--text)}
   #scrTanim .xlicon{width:16px;height:16px}
   .xlbtn{gap:4px}
 }
+
+.kasaicon{width:20px;height:20px;flex:0 0 auto}
+#scrTanim .bottombar{align-items:center}
+#scrTanim .bottombar .btngroup{flex:0 0 auto;flex-wrap:nowrap}
+#scrTanim .bottombar #btnTanimKapat{flex:0 0 auto}
+#scrTanim .bottombar .ortabtn{margin:0 auto}
+#scrTanim .bottombar #btnTanimKapat{margin-left:0}
+.pasifken{display:block;font-style:italic;color:#6b7785;font-size:13px}
+.durumbtns{align-items:flex-end}
+.durumack{flex:1 1 auto;min-width:0;resize:none;border:1px solid #e0d27a;border-radius:6px;padding:6px 8px;font:inherit;font-size:14px;color:#d00000;font-weight:700;background:#fff}
+@media (max-width:480px){ #scrTanim .kasaicon{width:16px;height:16px} }

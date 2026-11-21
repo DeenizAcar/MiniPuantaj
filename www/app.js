@@ -154,7 +154,7 @@
     var c = document.createElement('canvas'), x = c.getContext('2d');
     // açıklama satırlarını ölç
     var pre = 'Açıklama : ';
-    x.font = '32px ' + FONT; var preW = x.measureText(pre).width;
+    x.font = 'bold 32px ' + FONT; var preW = x.measureText(pre).width;
     x.font = 'bold 32px ' + FONT;
     var satirlar = metinBol(x, aciklama || '', W - 2 * P, preW);
     var AH = 40 + satirlar.length * 44 + 30;
@@ -194,7 +194,7 @@
     y += 40;
     satirlar.forEach(function (s, i) {
       var sx = P;
-      if (i === 0) { x.fillStyle = '#000'; x.font = '32px ' + FONT; x.fillText(pre, P, y); sx = P + preW; }
+      if (i === 0) { x.fillStyle = '#000'; x.font = 'bold 32px ' + FONT; x.fillText(pre, P, y); sx = P + preW; }
       x.fillStyle = '#d00000'; x.font = 'bold 32px ' + FONT; x.fillText(s, sx, y);
       y += 44;
     });
@@ -531,7 +531,7 @@
   /* ---------- ARŞİV ---------- */
   var DURUM_BASLIK = { 'GELMEDİ': 'Gelmedi', 'GELDİ': 'Geldi', 'BİLİNMİYOR': 'Bilinmiyor' };
   function durumHtml(a) {
-    return a.kayitlar.map(function (k) { return esc(k.ad) + ' - <b>' + (DURUM_BASLIK[k.durum] || esc(k.durum)) + '</b>'; }).join(', ');
+    return a.kayitlar.map(function (k) { return esc(k.ad) + '(<b>' + (DURUM_BASLIK[k.durum] || esc(k.durum)) + '</b>)'; }).join(', ');
   }
   function renderArsiv() {
     var liste = arsiv.slice().sort(function (a, b) { return a.zaman < b.zaman ? 1 : a.zaman > b.zaman ? -1 : 0; });
@@ -557,6 +557,7 @@
           return '<tr><td><div class="namecell"><span class="dot ' + RENK[k.durum] + '"></span><span class="fit">' + esc(k.ad) +
             '</span></div></td><td class="durumtxt">' + esc(k.durum) + '</td></tr>';
         }).join('');
+        $('txtDurumAciklama').value = a.aciklama || '';
         dialogAc('dlgDurum');
         sigdir($('durumGosterBody'));
       });
@@ -575,7 +576,7 @@
       var d = new Date(k.zaman), z = tarihYaz(d) + ' ' + saatYaz(d);
       var tr = document.createElement('tr');
       tr.innerHTML = '<td><b>' + z + '</b></td><td><span class="fit"><span class="pname">' + esc(k.ad) + '</span>' +
-        (k.pasif ? '<span class="pasiftag">(PASİFKEN)</span>' : '') + '</span></td>';
+        '</span>' + (k.pasif ? '<span class="pasifken">(PASİFKEN)</span>' : '') + '</td>';
       satirEtkilesim(tr, function (r, x, y) {
         menuAc(x, y, function () {
           onay('Kayıt Sil', '“' + k.ad + '” silme kaydı arşivden silinsin mi?', function () {
