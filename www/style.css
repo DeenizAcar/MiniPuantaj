@@ -161,3 +161,9 @@ select,input,textarea{font:inherit;color:var(--text)}
 .durumbtns{align-items:flex-end}
 .durumack{flex:1 1 auto;min-width:0;resize:none;border:1px solid #e0d27a;border-radius:6px;padding:6px 8px;font:inherit;font-size:14px;color:#d00000;font-weight:700;background:#fff}
 @media (max-width:480px){ #scrTanim .kasaicon{width:16px;height:16px} }
+
+/* durum penceresi: açıklama sahası tam genişlik, sadece okunur ve kaydırılabilir; tıklanamaz, imleç yok */
+.durumbtns{display:block}
+.durumack{display:block;width:100%;min-height:2.8em;max-height:6.2em;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  white-space:pre-wrap;word-break:break-word;line-height:1.4;user-select:none;-webkit-user-select:none;cursor:default;caret-color:transparent}
+.durumack:empty::before{content:"Açıklama yok";color:#9aa4ae;font-weight:400}

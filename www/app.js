@@ -557,7 +557,8 @@
           return '<tr><td><div class="namecell"><span class="dot ' + RENK[k.durum] + '"></span><span class="fit">' + esc(k.ad) +
             '</span></div></td><td class="durumtxt">' + esc(k.durum) + '</td></tr>';
         }).join('');
-        $('txtDurumAciklama').value = a.aciklama || '';
+        $('txtDurumAciklama').textContent = a.aciklama || '';
+        $('txtDurumAciklama').scrollTop = 0;
         dialogAc('dlgDurum');
         sigdir($('durumGosterBody'));
       });
