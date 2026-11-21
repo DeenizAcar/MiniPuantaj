@@ -1,6 +1,6 @@
 {
-  "appId": "com.deenizacar.minipuantaj",
-  "appName": "Mini Puantaj",
+  "appId": "com.deenizacar.minipuantaj2",
+  "appName": "Mini Puantaj 2",
   "webDir": "www",
   "android": { "allowMixedContent": false }
 }

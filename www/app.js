@@ -222,22 +222,56 @@
   }
 
   /* ---------- Paylaşım ---------- */
-  function paylas(dataUrl, dosyaAdi) {
+  function paylas(dataUrl, dosyaAdi, baslik, indirMesaji) {
+    baslik = baslik || 'Personel Durum Raporu';
     var Fs = plug('Filesystem'), Sh = plug('Share');
     if (isNative && Fs && Sh) {
       return Fs.writeFile({ path: dosyaAdi, data: dataUrl.split(',')[1], directory: 'CACHE' })
-        .then(function (r) { return Sh.share({ title: 'Personel Durum Raporu', files: [r.uri], dialogTitle: 'Raporu paylaş' }); })
+        .then(function (r) { return Sh.share({ title: baslik, files: [r.uri], dialogTitle: baslik }); })
         .catch(function (e) { if (!/cancel/i.test(String(e && e.message))) throw e; });
     }
     return fetch(dataUrl).then(function (r) { return r.blob(); }).then(function (blob) {
-      var file = new File([blob], dosyaAdi, { type: 'image/jpeg' });
+      var file = new File([blob], dosyaAdi, { type: blob.type });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        return navigator.share({ files: [file], title: 'Personel Durum Raporu' })
+        return navigator.share({ files: [file], title: baslik })
           .catch(function (e) { if (e && e.name !== 'AbortError') indir(dataUrl, dosyaAdi); });
       }
       indir(dataUrl, dosyaAdi);
-      toast('Rapor kaydedildi ve indirildi.');
+      toast(indirMesaji || 'Rapor kaydedildi ve indirildi.');
     });
+  }
+
+  /* ---------- Yedekle / Geri Yükle ---------- */
+  function yedekle() {
+    var veri = { uygulama: 'MiniPuantaj', surum: 1, zaman: new Date().toISOString(), personel: personel, arsiv: arsiv };
+    var json = JSON.stringify(veri, null, 1);
+    var dataUrl = 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(json)));
+    paylas(dataUrl, 'minipuantaj_yedek_' + gunAnahtar() + '.json', 'Mini Puantaj Yedeği', 'Yedek dosyası indirildi.')
+      .catch(function (e) { console.error(e); toast('Yedek alınamadı.'); });
+  }
+  function geriYukle(dosya) {
+    var r = new FileReader();
+    r.onload = function () {
+      var v;
+      try { v = JSON.parse(r.result); } catch (e) { v = null; }
+      if (!v || !Array.isArray(v.personel) || !Array.isArray(v.arsiv)) { toast('Geçerli bir yedek dosyası değil.'); return; }
+      onay('Geri Yükle', 'Yedekteki ' + v.personel.length + ' personel ve ' + v.arsiv.length +
+        ' arşiv kaydı mevcut verilere eklensin mi? (Var olan kayıtlar silinmez)', function () {
+        var pEk = 0, aEk = 0;
+        v.personel.forEach(function (p) {
+          if (!p || !p.ad) return;
+          var var_ = personel.some(function (q) { return q.id === p.id || trKucuk(q.ad) === trKucuk(p.ad); });
+          if (!var_) { personel.push({ id: p.id || uid(), ad: p.ad, cinsiyet: p.cinsiyet || 'Bilinmiyor', pasif: !!p.pasif }); pEk++; }
+        });
+        v.arsiv.forEach(function (a) {
+          if (!a || !a.zaman || !Array.isArray(a.kayitlar)) return;
+          if (!arsiv.some(function (q) { return q.id === a.id; })) { arsiv.push(a); aEk++; }
+        });
+        kaydetPersonel(); kaydetArsiv(); renderTanim();
+        toast(pEk + ' personel, ' + aEk + ' arşiv kaydı eklendi.');
+      });
+    };
+    r.readAsText(dosya);
   }
   function indir(dataUrl, ad) { var a = document.createElement('a'); a.href = dataUrl; a.download = ad; document.body.appendChild(a); a.click(); a.remove(); }
 
@@ -378,6 +412,9 @@
   $('txtAra').addEventListener('input', renderTanim);
   $('btnAraTemizle').addEventListener('click', function () { $('txtAra').value = ''; renderTanim(); });
   $('btnTanimKapat').addEventListener('click', function () { ekranGoster('scrMain'); });
+  $('btnYedekle').addEventListener('click', yedekle);
+  $('btnGeriYukle').addEventListener('click', function () { $('inpYedek').value = ''; $('inpYedek').click(); });
+  $('inpYedek').addEventListener('change', function () { if (this.files && this.files[0]) geriYukle(this.files[0]); });
 
   /* ---------- ARŞİV ---------- */
   var DURUM_BASLIK = { 'GELMEDİ': 'Gelmedi', 'GELDİ': 'Geldi', 'BİLİNMİYOR': 'Bilinmiyor' };
