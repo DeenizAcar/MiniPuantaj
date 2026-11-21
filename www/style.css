@@ -110,3 +110,5 @@ select,input,textarea{font:inherit;color:var(--text)}
   .grid.arsiv td{font-size:14px}
   .grid select{font-size:13px;padding:6px 2px}
 }
+
+#mainBody td:first-child,.grid.view td:first-child{font-weight:700}
