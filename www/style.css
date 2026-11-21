@@ -112,3 +112,11 @@ select,input,textarea{font:inherit;color:var(--text)}
 }
 
 #mainBody td:first-child,.grid.view td:first-child{font-weight:700}
+
+/* Arşiv: kayıt başına en fazla 8 satır, açıklama altta ayrı satır */
+.clamp8{display:-webkit-box;-webkit-line-clamp:8;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.grid tbody.kayit{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.grid tbody.kayit td{border-bottom:0;vertical-align:top}
+.grid tbody.kayit tr:last-child td{border-bottom:1px solid #b9c4d0}
+.grid tbody.kayit tr.aciklama td{padding-top:0;color:#c00;font-weight:600}
+.grid tbody.kayit.selected td{background:var(--sel)}

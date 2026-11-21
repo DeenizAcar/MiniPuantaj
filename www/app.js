@@ -261,7 +261,7 @@
     });
   }
   function satirSec(tr) {
-    tr.parentNode.querySelectorAll('tr.selected').forEach(function (r) { r.classList.remove('selected'); });
+    tr.parentNode.querySelectorAll('.selected').forEach(function (r) { r.classList.remove('selected'); });
     tr.classList.add('selected');
   }
 
@@ -380,17 +380,23 @@
   $('btnTanimKapat').addEventListener('click', function () { ekranGoster('scrMain'); });
 
   /* ---------- ARŞİV ---------- */
-  function durumMetni(a) { return a.kayitlar.map(function (k) { return k.ad + ' - ' + k.durum; }).join(', '); }
+  var DURUM_BASLIK = { 'GELMEDİ': 'Gelmedi', 'GELDİ': 'Geldi', 'BİLİNMİYOR': 'Bilinmiyor' };
+  function durumHtml(a) {
+    return a.kayitlar.map(function (k) { return esc(k.ad) + ' - <b>' + (DURUM_BASLIK[k.durum] || esc(k.durum)) + '</b>'; }).join(', ');
+  }
   function renderArsiv() {
     var liste = arsiv.slice().sort(function (a, b) { return a.zaman < b.zaman ? 1 : a.zaman > b.zaman ? -1 : 0; });
-    var tb = $('arsivBody'); tb.innerHTML = '';
+    var tablo = $('arsivTable');
+    tablo.querySelectorAll('tbody').forEach(function (b) { b.remove(); });
     $('arsivEmpty').classList.toggle('hidden', liste.length > 0);
     liste.forEach(function (a) {
       var d = new Date(a.zaman);
-      var tr = document.createElement('tr');
-      tr.innerHTML = '<td><div class="clamp">' + tarihYaz(d) + ' ' + saatYaz(d) + '</div></td>' +
-        '<td><div class="clamp">' + esc(durumMetni(a)) + '</div></td>' +
-        '<td><div class="clamp" style="color:#c00;font-weight:600">' + esc(a.aciklama || '') + '</div></td>';
+      // her kayıt kendi tbody'si: üst satır zaman + durum, alt satır açıklama
+      var tr = document.createElement('tbody');
+      tr.className = 'kayit';
+      tr.innerHTML = '<tr><td><div class="clamp8">' + tarihYaz(d) + ' ' + saatYaz(d) + '</div></td>' +
+        '<td><div class="clamp8">' + durumHtml(a) + '</div></td></tr>' +
+        (a.aciklama ? '<tr class="aciklama"><td colspan="2"><div class="clamp8">' + esc(a.aciklama) + '</div></td></tr>' : '');
       satirEtkilesim(tr, function (r, x, y) {
         menuAc(x, y, function () {
           onay('Kayıt Sil', tarihYaz(d) + ' ' + saatYaz(d) + ' tarihli arşiv kaydı silinsin mi?', function () {
@@ -404,7 +410,7 @@
         }).join('');
         dialogAc('dlgDurum');
       });
-      tb.appendChild(tr);
+      tablo.appendChild(tr);
     });
   }
   $('btnArsivTumSil').addEventListener('click', function () {
