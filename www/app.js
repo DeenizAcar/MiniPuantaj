@@ -30,6 +30,9 @@
   function aktifPersonel() { return personel.filter(function (p) { return !p.pasif; }); }
   function kaydetPersonel() { yaz(K_PERSONEL, personel); }
   function kaydetArsiv() { yaz(K_ARSIV, arsiv); }
+  var K_SILINEN = 'mp_silinen';
+  var silinen = oku(K_SILINEN, []);    // [{id, zaman, ad, pasif}]
+  function kaydetSilinen() { yaz(K_SILINEN, silinen); }
 
   /* ---------- Yardımcılar ---------- */
   function pad(n) { return (n < 10 ? '0' : '') + n; }
@@ -74,13 +77,14 @@
     if (id === 'scrMain') { gunKontrol(); renderMain(); }
     if (id === 'scrTanim') renderTanim();
     if (id === 'scrArsiv') renderArsiv();
+    if (id === 'scrSilinen') renderSilinen();
   }
 
   /* ---------- ANA EKRAN ---------- */
   function renderMain() {
     var now = new Date();
     $('mainDate').textContent = tarihYaz(now) + ' ' + GUNLER[now.getDay()];
-    $('mainSent').textContent = gunluk.gonderildi ? ('Rapor gönderildi: ' + saatYaz(new Date(gunluk.zaman))) : '';
+    $('mainSent').textContent = gunluk.gonderildi ? ('Rapor gönderildi : ' + saatYaz(new Date(gunluk.zaman))) : '';
 
     var liste = aktifPersonel().sort(adSirala);
     var tb = $('mainBody'); tb.innerHTML = '';
@@ -91,14 +95,28 @@
       var yeni = gunluk.gonderildi && gunluk.kayitliIdler.indexOf(p.id) < 0;
       var tr = document.createElement('tr');
       var opts = DURUMLAR.map(function (x) { return '<option' + (x === d ? ' selected' : '') + '>' + x + '</option>'; }).join('');
-      tr.innerHTML = '<td><div class="clamp">' + esc(p.ad) + (yeni ? '<span class="newtag">(yeni eklendi)</span>' : '') + '</div></td>' +
-        '<td><select>' + opts + '</select></td>' +
-        '<td class="c-sym"><span class="dot ' + RENK[d] + '"></span></td>';
+      tr.innerHTML = '<td><div class="namecell"><span class="dot ' + RENK[d] + '"></span><span class="fit">' + esc(p.ad) +
+        (yeni ? '<span class="newtag">(yeni eklendi)</span>' : '') + '</span></div></td>' +
+        '<td><select>' + opts + '</select></td>';
       var sel = tr.querySelector('select'), dot = tr.querySelector('.dot');
       sel.addEventListener('change', function () { taslak[p.id] = sel.value; dot.className = 'dot ' + RENK[sel.value]; });
       tb.appendChild(tr);
     });
+    sigdir($('mainBody'));
   }
+
+  /* İsimleri sahaya sığdır: taşarsa yazı boyutunu küçült */
+  function sigdir(kok) {
+    requestAnimationFrame(function () {
+      (kok || document).querySelectorAll('.fit').forEach(function (el) {
+        el.style.fontSize = '';
+        var fs = parseFloat(getComputedStyle(el).fontSize) || 16;
+        while (fs > 9 && el.scrollWidth > el.clientWidth + 0.5) { fs -= 0.5; el.style.fontSize = fs + 'px'; }
+      });
+    });
+  }
+  var sigT;
+  window.addEventListener('resize', function () { clearTimeout(sigT); sigT = setTimeout(function () { sigdir(); }, 150); });
 
   function raporListesi() {
     return aktifPersonel().map(function (p) { return { ad: p.ad, durum: taslak[p.id] || VARSAYILAN }; })
@@ -146,12 +164,12 @@
     // üst panel
     x.fillStyle = '#1f4e79'; x.fillRect(0, 0, W, HDR);
     x.fillStyle = '#fff'; x.textBaseline = 'middle';
-    x.font = 'bold 44px ' + FONT; x.fillText('Personel Durum Raporu', P, 50);
+    x.font = 'bold 44px ' + FONT; x.fillText('PERSONEL DURUM RAPORU', P, 50);
     x.font = 'bold 32px ' + FONT;
     x.fillText('Tarih: ' + tarihYaz(zaman) + ' ' + GUNLER[zaman.getDay()] + ' / Rapor Saati: ' + saatYaz(zaman), P, 108);
 
     // tablo başlığı
-    var y = HDR, cNo = P, cAd = P + 70, cDur = 680, cSym = 960;
+    var y = HDR, cNo = P, cAd = P + 70, cDur = 760, R = 22, cIsim = cAd + 2 * R + 16;
     x.fillStyle = '#dfe7ef'; x.fillRect(0, y, W, TH);
     x.fillStyle = '#33404e'; x.font = 'bold 28px ' + FONT;
     x.fillText('#', cNo, y + TH / 2); x.fillText('Adı Soyadı', cAd, y + TH / 2); x.fillText('Durumu', cDur, y + TH / 2);
@@ -161,9 +179,14 @@
       x.strokeStyle = '#d5dde6'; x.lineWidth = 2; x.beginPath(); x.moveTo(0, y + RH); x.lineTo(W, y + RH); x.stroke();
       var my = y + RH / 2;
       x.fillStyle = '#6b7785'; x.font = '28px ' + FONT; x.fillText(String(i + 1), cNo, my);
-      x.fillStyle = '#1b2430'; x.font = '32px ' + FONT; x.fillText(kisalt(x, k.ad, cDur - cAd - 20), cAd, my);
+      // renkli simge ismin önünde, isim bold ve sahaya sığacak kadar küçültülür
+      top3d(x, cAd + R, my, R, k.durum);
+      x.fillStyle = '#1b2430';
+      var genis = cDur - cIsim - 20, fs = 32;
+      x.font = 'bold ' + fs + 'px ' + FONT;
+      while (fs > 18 && x.measureText(k.ad).width > genis) { fs--; x.font = 'bold ' + fs + 'px ' + FONT; }
+      x.fillText(kisalt(x, k.ad, genis), cIsim, my);
       x.font = 'bold 30px ' + FONT; x.fillText(k.durum, cDur, my);
-      top3d(x, cSym + 30, my, 24, k.durum);
       y += RH;
     });
 
@@ -402,20 +425,30 @@
   $('onayHayir').addEventListener('click', function () { onayCb = null; dialogKapat('dlgOnay'); });
 
   /* ---------- TANIMLAR ---------- */
-  function aramaKelimeleri() { return trKucuk($('txtAra').value).split(/\s+/).filter(Boolean); }
-
+  var araKelimeler = [];
+  function aramaKelimeleri() {
+    return araKelimeler.concat($('txtAra').value.split(/\s+/).filter(Boolean)).map(trKucuk);
+  }
   function renderChips() {
-    var box = $('chips'); box.innerHTML = '';
-    $('txtAra').value.split(/\s+/).filter(Boolean).forEach(function (k, i) {
+    var box = $('araEtiketler'); box.innerHTML = '';
+    araKelimeler.forEach(function (k, i) {
       var c = document.createElement('span'); c.className = 'chip';
       c.innerHTML = '<span>' + esc(k) + '</span><button class="xbtn" title="Kelimeyi sil">✕</button>';
-      c.querySelector('button').addEventListener('click', function () {
-        var arr = $('txtAra').value.split(/\s+/).filter(Boolean); arr.splice(i, 1);
-        $('txtAra').value = arr.join(' ') + (arr.length ? ' ' : '');
-        renderTanim();
+      c.querySelector('button').addEventListener('click', function (e) {
+        e.stopPropagation(); araKelimeler.splice(i, 1); renderTanim();
       });
       box.appendChild(c);
     });
+    $('txtAra').placeholder = araKelimeler.length ? '' : 'İsim soyisim ara...';
+  }
+  function araGirdi() {
+    var v = $('txtAra').value;
+    if (/\s/.test(v)) {
+      var parca = v.split(/\s+/), son = parca.pop();
+      parca.filter(Boolean).forEach(function (k) { araKelimeler.push(k); });
+      $('txtAra').value = son;
+    }
+    renderTanim();
   }
 
   function renderTanim() {
@@ -432,15 +465,16 @@
     bos.innerHTML = personel.length ? 'Aramaya uyan personel bulunamadı.' : 'Henüz personel yok.<br>“Personel Ekle” ile ekleyebilirsiniz.';
     liste.forEach(function (p) {
       var tr = document.createElement('tr');
-      tr.innerHTML = '<td><div class="clamp"><span class="pname' + (p.pasif ? ' pasif' : '') + '">' + esc(p.ad) + '</span>' +
-        (p.pasif ? '<span class="pasiftag">(PASİF)</span>' : '') + '</div></td>' +
+      tr.innerHTML = '<td><span class="fit"><span class="pname' + (p.pasif ? ' pasif' : '') + '">' + esc(p.ad) + '</span>' +
+        (p.pasif ? '<span class="pasiftag">(PASİF)</span>' : '') + '</span></td>' +
         '<td><span class="cins">' + esc(p.cinsiyet) + (IKON[p.cinsiyet] || '') + '</span></td>';
       satirEtkilesim(tr, function (r, x, y) {
         menuAc(x, y, function () {
           onay('Personel Sil', '“' + p.ad + '” silinsin mi?', function () {
             personel = personel.filter(function (q) { return q.id !== p.id; });
             delete taslak[p.id];
-            kaydetPersonel(); renderTanim(); toast('Personel silindi.');
+            silinen.push({ id: uid(), zaman: new Date().toISOString(), ad: p.ad, pasif: !!p.pasif });
+            kaydetPersonel(); kaydetSilinen(); renderTanim(); toast('Personel silindi ve arşive alındı.');
           });
         }, {
           yazi: p.pasif ? 'Aktif Yap' : 'Pasif Yap',
@@ -454,6 +488,7 @@
       }, function () { personelDialog(p); });
       tb.appendChild(tr);
     });
+    sigdir(tb);
   }
 
   var duzenlenen = null;
@@ -480,8 +515,14 @@
   $('btnPersonelKaydet').addEventListener('click', personelKaydet);
   $('inpAd').addEventListener('keydown', function (e) { if (e.key === 'Enter') personelKaydet(); });
   $('btnPersonelEkle').addEventListener('click', function () { personelDialog(null); });
-  $('txtAra').addEventListener('input', renderTanim);
-  $('btnAraTemizle').addEventListener('click', function () { $('txtAra').value = ''; renderTanim(); });
+  $('txtAra').addEventListener('input', araGirdi);
+  $('txtAra').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && $('txtAra').value.trim()) { araKelimeler.push($('txtAra').value.trim()); $('txtAra').value = ''; renderTanim(); }
+    else if (e.key === 'Backspace' && !$('txtAra').value && araKelimeler.length) { araKelimeler.pop(); renderTanim(); }
+  });
+  $('araKutu').addEventListener('click', function () { $('txtAra').focus(); });
+  $('btnAraTemizle').addEventListener('click', function (e) { e.stopPropagation(); araKelimeler = []; $('txtAra').value = ''; renderTanim(); });
+  $('btnSilinenArsiv').addEventListener('click', function () { ekranGoster('scrSilinen'); });
   $('btnTanimKapat').addEventListener('click', function () { ekranGoster('scrMain'); });
   $('btnDisaAktar').addEventListener('click', disaAktar);
   $('btnIceAktar').addEventListener('click', function () { $('inpIceAktar').value = ''; $('inpIceAktar').click(); });
@@ -502,7 +543,7 @@
       // her kayıt kendi tbody'si: üst satır zaman + durum, alt satır açıklama
       var tr = document.createElement('tbody');
       tr.className = 'kayit';
-      tr.innerHTML = '<tr><td><div class="clamp8">' + tarihYaz(d) + ' ' + saatYaz(d) + '</div></td>' +
+      tr.innerHTML = '<tr><td><div class="clamp8"><b>' + tarihYaz(d) + ' ' + saatYaz(d) + '</b></div></td>' +
         '<td><div class="clamp8">' + durumHtml(a) + '</div></td></tr>' +
         (a.aciklama ? '<tr class="aciklama"><td colspan="2"><div class="clamp8">' + esc(a.aciklama) + '</div></td></tr>' : '');
       satirEtkilesim(tr, function (r, x, y) {
@@ -513,14 +554,47 @@
         });
       }, function () {
         $('durumGosterBody').innerHTML = a.kayitlar.map(function (k) {
-          return '<tr><td><div class="clamp">' + esc(k.ad) + '</div></td><td class="durumtxt">' + esc(k.durum) + '</td>' +
-            '<td class="c-sym"><span class="dot ' + RENK[k.durum] + '"></span></td></tr>';
+          return '<tr><td><div class="namecell"><span class="dot ' + RENK[k.durum] + '"></span><span class="fit">' + esc(k.ad) +
+            '</span></div></td><td class="durumtxt">' + esc(k.durum) + '</td></tr>';
         }).join('');
         dialogAc('dlgDurum');
+        sigdir($('durumGosterBody'));
       });
       tablo.appendChild(tr);
     });
+    ilkSec(tablo);
   }
+  function ilkSec(kok) { var ilk = kok.querySelector('tbody.kayit, tbody > tr'); if (ilk) satirSec(ilk); }
+
+  /* ---------- SİLİNEN PERSONEL ARŞİVİ ---------- */
+  function renderSilinen() {
+    var liste = silinen.slice().sort(function (a, b) { return a.zaman < b.zaman ? 1 : a.zaman > b.zaman ? -1 : 0; });
+    var tb = $('silinenBody'); tb.innerHTML = '';
+    $('silinenEmpty').classList.toggle('hidden', liste.length > 0);
+    liste.forEach(function (k) {
+      var d = new Date(k.zaman), z = tarihYaz(d) + ' ' + saatYaz(d);
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td><b>' + z + '</b></td><td><span class="fit"><span class="pname">' + esc(k.ad) + '</span>' +
+        (k.pasif ? '<span class="pasiftag">(PASİFKEN)</span>' : '') + '</span></td>';
+      satirEtkilesim(tr, function (r, x, y) {
+        menuAc(x, y, function () {
+          onay('Kayıt Sil', '“' + k.ad + '” silme kaydı arşivden silinsin mi?', function () {
+            silinen = silinen.filter(function (q) { return q.id !== k.id; }); kaydetSilinen(); renderSilinen(); toast('Kayıt silindi.');
+          });
+        });
+      }, function () {});
+      tb.appendChild(tr);
+    });
+    ilkSec(tb.parentNode);
+    sigdir(tb);
+  }
+  $('btnSilinenTumSil').addEventListener('click', function () {
+    if (!silinen.length) { toast('Silinecek kayıt yok.'); return; }
+    onay('Tümünü Sil', 'Tüm arşiv kayıtları (' + silinen.length + ' adet) silinsin mi?', function () {
+      silinen = []; kaydetSilinen(); renderSilinen(); toast('Tüm arşiv silindi.');
+    });
+  });
+  $('btnSilinenKapat').addEventListener('click', function () { ekranGoster('scrTanim'); });
   $('btnArsivTumSil').addEventListener('click', function () {
     if (!arsiv.length) { toast('Silinecek kayıt yok.'); return; }
     onay('Tümünü Sil', 'Tüm arşiv kayıtları (' + arsiv.length + ' adet) silinsin mi?', function () {
@@ -542,6 +616,7 @@
       if (!$('popMenu').classList.contains('hidden')) { menuKapat(); return; }
       var d = acikDialog();
       if (d) { if (d.id === 'dlgOnay') onayCb = null; dialogKapat(d.id); return; }
+      if (aktifEkran === 'scrSilinen') { ekranGoster('scrTanim'); return; }
       if (aktifEkran !== 'scrMain') { ekranGoster('scrMain'); return; }
       onay('Çıkış', 'Uygulamadan çıkılsın mı?', function () { App.exitApp(); });
     });
@@ -554,7 +629,7 @@
 
   // diğer sekmede/pencerede yapılan değişiklikleri al
   window.addEventListener('storage', function () {
-    personel = oku(K_PERSONEL, []); arsiv = oku(K_ARSIV, []);
+    personel = oku(K_PERSONEL, []); arsiv = oku(K_ARSIV, []); silinen = oku(K_SILINEN, []);
     ekranGoster(aktifEkran);
   });
 

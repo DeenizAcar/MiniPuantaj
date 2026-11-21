@@ -48,7 +48,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,
 .newtag{color:#d00000;font-weight:700;margin-left:4px;white-space:nowrap}
 
 select,input,textarea{font:inherit;color:var(--text)}
-.grid select{width:100%;height:28px;padding:0 4px;border:1px solid #b9c4d0;border-radius:6px;background:#fff;font-size:14px;font-weight:600}
+.grid select{width:100%;height:30px;line-height:normal;padding:0 4px;border:1px solid #b9c4d0;border-radius:6px;background:#fff;font-size:14px;font-weight:600}
 
 /* 3 boyutlu yuvarlak semboller */
 .dot{display:inline-block;width:22px;height:22px;border-radius:50%;vertical-align:middle;
@@ -68,7 +68,7 @@ select,input,textarea{font:inherit;color:var(--text)}
 /* Arama */
 .searchbox{position:relative;flex:1;min-width:0}
 .searchbox input{width:100%;padding:9px 34px 9px 10px;border-radius:8px;border:1px solid #b9c4d0;font-size:15px}
-.searchbox .xbtn{position:absolute;right:4px;top:50%;transform:translateY(-50%)}
+#btnAraTemizle{position:absolute;right:4px;top:50%;transform:translateY(-50%)}
 .xbtn{border:0;background:transparent;color:#000;font-size:16px;font-weight:700;line-height:1;width:28px;height:28px;cursor:pointer;border-radius:50%}
 .xbtn:active{background:rgba(0,0,0,.1)}
 .chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px}
@@ -90,7 +90,7 @@ select,input,textarea{font:inherit;color:var(--text)}
 .dlg-btns{display:flex;justify-content:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--line)}
 .err{color:var(--danger);font-size:13px;min-height:16px}
 .dialog.yellow .dlg-title{background:#fff8c4;border-bottom-color:#e8dc8a}
-.dialog.yellow .dlg-body{padding:0}
+.dialog.yellow#dlgDurum .dlg-body{padding:0}
 .grid.view td{padding:3px 10px}
 .grid.view .durumtxt{font-weight:600;font-size:14px}
 .dialog.yellow textarea{width:100%;resize:none;border:1px solid #e0d27a;background:#fffbe0;border-radius:6px;padding:8px;font-size:15px;line-height:1.45}
@@ -123,3 +123,30 @@ select,input,textarea{font:inherit;color:var(--text)}
 
 .xlbtn{display:inline-flex;align-items:center;gap:6px}
 .xlicon{width:20px;height:20px;flex:0 0 auto}
+
+/* --- isim hücresi: renkli simge ismin önünde, isim sahaya sığdırılır --- */
+.namecell{display:flex;align-items:center;gap:8px;min-width:0}
+.namecell .dot{flex:0 0 auto}
+.fit{display:block;flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden}
+#mainBody .fit,.grid.view .fit{font-weight:700}
+.sent{color:#4cff7a;font-weight:700;opacity:1}
+
+/* --- ana ekran alt paneli --- */
+.bottombar.sendbar{align-items:flex-end}
+.sendcol{display:inline-flex;flex-direction:column;justify-content:space-between;align-self:stretch;flex:0 0 auto}
+.acklabel{font-weight:700;font-size:15px;white-space:nowrap;padding-top:2px}
+.sendcol #btnGonder{width:100%;padding:0;height:28px;font-size:14px;margin:0}
+.bottombar.sendbar textarea{flex:1 1 auto;min-width:0}
+
+/* --- arama sahası: kelimeler saha içinde --- */
+.searchbox{display:flex;flex-wrap:wrap;align-items:center;gap:4px;background:#fff;border:1px solid #b9c4d0;border-radius:8px;padding:4px 34px 4px 6px;min-height:40px;cursor:text}
+.searchbox input{flex:1 1 60px;min-width:60px;border:0;outline:0;padding:4px;width:auto;font-size:15px;background:transparent}
+.searchbox .tags{display:contents}
+.searchbox .chip{color:var(--text)}
+
+.btngroup{display:flex;gap:6px;flex-wrap:wrap}
+@media (max-width:480px){
+  #scrTanim .bottombar .btn{padding:8px 7px;font-size:13px}
+  #scrTanim .xlicon{width:16px;height:16px}
+  .xlbtn{gap:4px}
+}

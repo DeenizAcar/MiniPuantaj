@@ -26,27 +26,30 @@
   </header>
   <div class="tablewrap">
     <table class="grid">
-      <thead><tr><th>Adı Soyadı</th><th class="c-durum">Durumu</th><th class="c-sym"></th></tr></thead>
+      <thead><tr><th>Adı Soyadı</th><th class="c-durum">Durumu</th></tr></thead>
       <tbody id="mainBody"></tbody>
     </table>
     <div id="mainEmpty" class="empty hidden">Henüz personel tanımlanmamış.<br>“Tanımlar” ekranından personel ekleyebilirsiniz.</div>
   </div>
-  <footer class="bottombar">
+  <footer class="bottombar sendbar">
+    <div class="sendcol">
+      <label for="txtAciklama" class="acklabel">Açıklama :</label>
+      <button id="btnGonder" class="btn primary">GÖNDER</button>
+    </div>
     <textarea id="txtAciklama" placeholder="Açıklama yazınız..." rows="2"></textarea>
-    <button id="btnGonder" class="btn primary">GÖNDER</button>
   </footer>
 </section>
 
 <!-- ============ TANIMLAR ============ -->
 <section id="scrTanim" class="screen">
   <header class="topbar">
-    <div class="searchbox">
+    <div id="araKutu" class="searchbox">
+      <span id="araEtiketler" class="tags"></span>
       <input id="txtAra" type="text" placeholder="İsim soyisim ara..." autocomplete="off">
       <button id="btnAraTemizle" class="xbtn" title="Temizle">✕</button>
     </div>
     <button id="btnPersonelEkle" class="btn">Personel Ekle</button>
   </header>
-  <div id="chips" class="chips"></div>
   <div class="tablewrap">
     <table class="grid">
       <thead><tr><th>Adı Soyadı</th><th class="c-cins">Cinsiyeti</th></tr></thead>
@@ -55,9 +58,10 @@
     <div id="tanimEmpty" class="empty hidden"></div>
   </div>
   <footer class="bottombar split">
-    <div style="display:flex;gap:8px">
+    <div class="btngroup">
       <button id="btnDisaAktar" class="btn xlbtn"><svg class="xlicon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="15" height="18" rx="2" fill="#21a366"/><rect x="14.5" y="3" width="7.5" height="18" rx="2" fill="#33c481"/><path d="M14.5 7.5H22M14.5 12H22M14.5 16.5H22" stroke="#185c37" stroke-width=".8"/><rect x="2" y="6" width="12" height="12" rx="1.6" fill="#107c41"/><path d="M5 8.6h2l1 2 1-2h2l-2 3.4 2 3.4H9l-1-2-1 2H5l2-3.4z" fill="#fff"/></svg>Dışa Aktar</button>
       <button id="btnIceAktar" class="btn xlbtn"><svg class="xlicon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="15" height="18" rx="2" fill="#21a366"/><rect x="14.5" y="3" width="7.5" height="18" rx="2" fill="#33c481"/><path d="M14.5 7.5H22M14.5 12H22M14.5 16.5H22" stroke="#185c37" stroke-width=".8"/><rect x="2" y="6" width="12" height="12" rx="1.6" fill="#107c41"/><path d="M5 8.6h2l1 2 1-2h2l-2 3.4 2 3.4H9l-1-2-1 2H5l2-3.4z" fill="#fff"/></svg>İçe Aktar</button>
+      <button id="btnSilinenArsiv" class="btn">Arşiv</button>
       <input id="inpIceAktar" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" class="hidden">
     </div>
     <button id="btnTanimKapat" class="btn">Kapat</button>
@@ -79,11 +83,27 @@
   </footer>
 </section>
 
+<!-- ============ SİLİNEN PERSONEL ARŞİVİ ============ -->
+<section id="scrSilinen" class="screen">
+  <header class="topbar"><div class="title">Silinen Personel Arşivi</div></header>
+  <div class="tablewrap">
+    <table class="grid">
+      <thead><tr><th class="c-zaman">Silme Zamanı</th><th>Adı Soyadı</th></tr></thead>
+      <tbody id="silinenBody"></tbody>
+    </table>
+    <div id="silinenEmpty" class="empty hidden">Silinen personel kaydı bulunmuyor.</div>
+  </div>
+  <footer class="bottombar split">
+    <button id="btnSilinenKapat" class="btn">Kapat</button>
+    <button id="btnSilinenTumSil" class="btn danger">Tüm Arşiv Kayıtlarını Sil</button>
+  </footer>
+</section>
+
 <!-- ============ PENCERELER ============ -->
 <div id="overlay" class="overlay hidden"></div>
 
 <!-- Personel ekle / düzenle -->
-<div id="dlgPersonel" class="dialog hidden">
+<div id="dlgPersonel" class="dialog yellow hidden">
   <div class="dlg-title"><span id="dlgPersonelTitle">Personel</span><button class="xbtn dark" data-close>✕</button></div>
   <div class="dlg-body">
     <label>Adı Soyadı<input id="inpAd" type="text" maxlength="80" autocomplete="off"></label>
@@ -101,7 +121,7 @@
 <!-- Personel durum görüntüleme -->
 <div id="dlgDurum" class="dialog yellow hidden">
   <div class="dlg-title"><span>Personel Durum Görüntüleme</span><button class="xbtn dark" data-close>✕</button></div>
-  <div class="dlg-body"><table class="grid view"><thead><tr><th>Adı Soyadı</th><th class="c-durum">Durumu</th><th class="c-sym"></th></tr></thead><tbody id="durumGosterBody"></tbody></table></div>
+  <div class="dlg-body"><table class="grid view"><thead><tr><th>Adı Soyadı</th><th class="c-durum">Durumu</th></tr></thead><tbody id="durumGosterBody"></tbody></table></div>
   <div class="dlg-btns"><button class="btn primary" data-close>Tamam</button></div>
 </div>
 
