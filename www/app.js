@@ -2,10 +2,11 @@
 (function () {
   'use strict';
 
-  var DURUMLAR = ['GELMEDİ', 'GELDİ', 'BİLİNMİYOR'];
-  var VARSAYILAN = 'GELMEDİ';
+  var SECINIZ = 'Seçiniz';
+  var DURUMLAR = [SECINIZ, 'GELMEDİ', 'GELDİ', 'BİLİNMİYOR'];
+  var VARSAYILAN = SECINIZ;
   var SIRA = { 'GELMEDİ': 0, 'BİLİNMİYOR': 1, 'GELDİ': 2 };
-  var RENK = { 'GELMEDİ': 'red', 'GELDİ': 'green', 'BİLİNMİYOR': 'gray' };
+  var RENK = { 'Seçiniz': 'none', 'GELMEDİ': 'red', 'GELDİ': 'green', 'BİLİNMİYOR': 'gray' };
   var GUNLER = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 
   // yüzsüz porte simgeleri
@@ -97,9 +98,12 @@
       var opts = DURUMLAR.map(function (x) { return '<option' + (x === d ? ' selected' : '') + '>' + x + '</option>'; }).join('');
       tr.innerHTML = '<td><div class="namecell"><span class="dot ' + RENK[d] + '"></span><span class="fit">' + esc(p.ad) +
         (yeni ? '<span class="newtag">(yeni eklendi)</span>' : '') + '</span></div></td>' +
-        '<td><select>' + opts + '</select></td>';
+        '<td><select' + (d === SECINIZ ? ' class="secilmedi"' : '') + '>' + opts + '</select></td>';
       var sel = tr.querySelector('select'), dot = tr.querySelector('.dot');
-      sel.addEventListener('change', function () { taslak[p.id] = sel.value; dot.className = 'dot ' + RENK[sel.value]; });
+      sel.addEventListener('change', function () {
+        taslak[p.id] = sel.value; dot.className = 'dot ' + RENK[sel.value];
+        sel.classList.toggle('secilmedi', sel.value === SECINIZ);
+      });
       tb.appendChild(tr);
     });
     sigdir($('mainBody'));
@@ -128,6 +132,19 @@
     if (gonderiliyor) return;
     gunKontrol();
     if (!aktifPersonel().length) { toast('Önce aktif personel tanımlayınız.'); return; }
+    var secilmemis = aktifPersonel().filter(function (p) { return (taslak[p.id] || VARSAYILAN) === SECINIZ; });
+    if (secilmemis.length) {
+      onay('Gönderim Onayı', 'Durumunu seçmediğiniz personeller mevcut,<br>Bu personeller için <b>Bilinmiyor</b> bilgisi ile raporu göndermek istiyor musunuz?',
+        function () {
+          // seçilmeyenler Bilinmiyor seçilmiş gibi raporlanır ve öyle kaydedilir
+          secilmemis.forEach(function (p) { taslak[p.id] = 'BİLİNMİYOR'; });
+          gonderAsil();
+        }, true);
+      return;
+    }
+    gonderAsil();
+  }
+  function gonderAsil() {
     gonderiliyor = true;
     var zaman = new Date();
     var aciklama = $('txtAciklama').value.trim();
@@ -417,8 +434,8 @@
   });
 
   var onayCb = null;
-  function onay(baslik, mesaj, cb) {
-    $('onayTitle').textContent = baslik; $('onayMsg').textContent = mesaj; onayCb = cb;
+  function onay(baslik, mesaj, cb, html) {
+    $('onayTitle').textContent = baslik; $('onayMsg')[html ? 'innerHTML' : 'textContent'] = mesaj; onayCb = cb;
     dialogAc('dlgOnay');
   }
   $('onayEvet').addEventListener('click', function () { var f = onayCb; onayCb = null; dialogKapat('dlgOnay'); if (f) f(); });
