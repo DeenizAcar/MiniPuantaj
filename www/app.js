@@ -9,13 +9,7 @@
   var RENK = { 'Seçiniz': 'none', 'GELMEDİ': 'red', 'GELDİ': 'green', 'BİLİNMİYOR': 'gray' };
   var GUNLER = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 
-  // yüzsüz porte simgeleri
-  var IKON = {
-    'Erkek': '<svg class="gicon" viewBox="0 0 24 24" aria-label="Erkek"><circle cx="12" cy="7.5" r="4.5" fill="#1f6fb5"/><path d="M3.5 22c0-5 3.8-8.5 8.5-8.5s8.5 3.5 8.5 8.5z" fill="#1f6fb5"/></svg>',
-    'Kadın': '<svg class="gicon" viewBox="0 0 24 24" aria-label="Kadın"><path d="M12 2.2c-3.4 0-5.6 2.6-5.6 6 0 2.2-.6 4-1.6 5.3 1.6.6 3.3.8 4.6.7a5 5 0 0 0 5.2 0c1.3.1 3-.1 4.6-.7-1-1.3-1.6-3.1-1.6-5.3 0-3.4-2.2-6-5.6-6z" fill="#c2185b"/><path d="M12 15c-3.5 0-6.2 2.4-7.5 7h15c-1.3-4.6-4-7-7.5-7z" fill="#c2185b"/></svg>'
-  };
-
-  var K_PERSONEL = 'mp_personel', K_GUNLUK = 'mp_gunluk', K_ARSIV = 'mp_arsiv';
+  var K_PERSONEL = 'mp_kaynak_personel', K_GUNLUK = 'mp_gunluk', K_ARSIV = 'mp_arsiv';
 
   var $ = function (id) { return document.getElementById(id); };
   var Cap = window.Capacitor;
@@ -26,14 +20,45 @@
   function oku(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
   function yaz(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { toast('Kayıt yapılamadı!'); } }
 
-  var personel = oku(K_PERSONEL, []);  // [{id, ad, cinsiyet}]
   var arsiv = oku(K_ARSIV, []);        // [{id, zaman, kayitlar:[{ad,durum}], aciklama}]
-  function aktifPersonel() { return personel.filter(function (p) { return !p.pasif; }); }
-  function kaydetPersonel() { yaz(K_PERSONEL, personel); }
   function kaydetArsiv() { yaz(K_ARSIV, arsiv); }
-  var K_SILINEN = 'mp_silinen';
-  var silinen = oku(K_SILINEN, []);    // [{id, zaman, ad, pasif}]
-  function kaydetSilinen() { yaz(K_SILINEN, silinen); }
+
+  /* ---------- Personel kaynağı: Personel programı ----------
+     Ana ekrana Personel programında "Puantajda Görünsün" işaretli ve pasif olmayanlar gelir.
+     Web: aynı sitedeki Personel uygulamasının ps_personel kaydı okunur.
+     Android: Personel uygulamasının paylaştığı liste PersonelKaynak eklentisiyle okunur.
+     Son okunan liste saklanır; kaynak okunamazsa o gösterilir. */
+  var personel = oku(K_PERSONEL, []);   // [{id, ad, cinsiyet, puantaj, pasif}]
+  var kaynakHata = '';
+  function aktifPersonel() { return personel.filter(function (p) { return p.puantaj !== false && !p.pasif; }); }
+  function listeUygula(liste) {
+    personel = (Array.isArray(liste) ? liste : []).filter(function (p) { return p && p.id && p.ad; }).map(function (p) {
+      return { id: p.id, ad: p.ad, cinsiyet: p.cinsiyet, puantaj: p.puantaj !== false, pasif: !!p.pasif };
+    });
+    yaz(K_PERSONEL, personel);
+    kaynakHata = '';
+  }
+  function personelYukle() {
+    if (isNative) {
+      var Kaynak = plug('PersonelKaynak');
+      if (!Kaynak) { kaynakHata = 'Personel programına bağlanılamadı.'; return Promise.resolve(); }
+      return Kaynak.oku().then(function (r) {
+        if (r && r.json) listeUygula(JSON.parse(r.json));
+        else if (!personel.length) kaynakHata = 'Personel programı henüz liste paylaşmadı. Personel programını bir kez açınız.';
+      }).catch(function (e) {
+        var kod = e && e.code;
+        kaynakHata = kod === 'IZIN' ? 'Personel programı bu uygulamaya izin vermedi.'
+          : 'Personel programı bulunamadı. Personel programını kurup en az bir kez açınız.';
+      });
+    }
+    var w = oku('ps_personel', null);
+    if (w) listeUygula(w);
+    else kaynakHata = 'Personel programında kayıt bulunamadı.';
+    return Promise.resolve();
+  }
+  function personelYenile() {
+    return personelYukle().then(function () { if (aktifEkran === 'scrMain') renderMain(); });
+  }
 
   /* ---------- Yardımcılar ---------- */
   function pad(n) { return (n < 10 ? '0' : '') + n; }
@@ -76,9 +101,7 @@
     aktifEkran = id;
     menuKapat();
     if (id === 'scrMain') { gunKontrol(); renderMain(); }
-    if (id === 'scrTanim') renderTanim();
     if (id === 'scrArsiv') renderArsiv();
-    if (id === 'scrSilinen') renderSilinen();
   }
 
   /* ---------- ANA EKRAN ---------- */
@@ -90,8 +113,10 @@
     var liste = aktifPersonel().sort(adSirala);
     var tb = $('mainBody'); tb.innerHTML = '';
     $('mainEmpty').classList.toggle('hidden', liste.length > 0);
+    $('mainEmpty').innerHTML = esc(kaynakHata || 'Personel programında puantajda görünecek personel yok.') +
+      (isNative ? '' : '<br><a href="../Personel/">Personel programını aç</a>');
     liste.forEach(function (p) {
-      if (!taslak[p.id]) taslak[p.id] = VARSAYILAN;
+      if (!taslak[p.id]) taslak[p.id] = gunluk.durumlar[p.id] || VARSAYILAN;
       var d = taslak[p.id];
       var yeni = gunluk.gonderildi && gunluk.kayitliIdler.indexOf(p.id) < 0;
       var tr = document.createElement('tr');
@@ -284,99 +309,6 @@
     });
   }
 
-  /* ---------- Excel Dışa Aktar / İçe Aktar ---------- */
-  var xlsxSoz = null;
-  function xlsxYukle() {
-    if (window.XLSX) return Promise.resolve(window.XLSX);
-    if (!xlsxSoz) xlsxSoz = new Promise(function (ok, hata) {
-      var s = document.createElement('script'); s.src = 'vendor/xlsx.full.min.js';
-      s.onload = function () { ok(window.XLSX); };
-      s.onerror = function () { xlsxSoz = null; hata(new Error('xlsx yüklenemedi')); };
-      document.head.appendChild(s);
-    });
-    return xlsxSoz;
-  }
-  var DURUM_GERI = { 'gelmedi': 'GELMEDİ', 'geldi': 'GELDİ', 'bilinmiyor': 'BİLİNMİYOR' };
-  var CINS_GERI = { 'erkek': 'Erkek', 'kadın': 'Kadın', 'kadin': 'Kadın', 'bilinmiyor': 'Bilinmiyor' };
-
-  function disaAktar() {
-    xlsxYukle().then(function (X) {
-      var pRows = personel.slice().sort(adSirala).map(function (p) {
-        return { 'Adı Soyadı': p.ad, 'Cinsiyeti': p.cinsiyet, 'Durumu': p.pasif ? 'Pasif' : 'Aktif' };
-      });
-      var aRows = arsiv.slice().sort(function (a, b) { return a.zaman < b.zaman ? 1 : -1; }).map(function (a) {
-        var d = new Date(a.zaman);
-        return { 'Gönderme Zamanı': tarihYaz(d) + ' ' + saatYaz(d),
-          'Personel Durumu': a.kayitlar.map(function (k) { return k.ad + ' - ' + (DURUM_BASLIK[k.durum] || k.durum); }).join(', '),
-          'Açıklama': a.aciklama || '', 'Kayıt No': a.id };
-      });
-      var wb = X.utils.book_new();
-      var ws1 = X.utils.json_to_sheet(pRows, { header: ['Adı Soyadı', 'Cinsiyeti', 'Durumu'] });
-      ws1['!cols'] = [{ wch: 32 }, { wch: 12 }, { wch: 10 }];
-      var ws2 = X.utils.json_to_sheet(aRows, { header: ['Gönderme Zamanı', 'Personel Durumu', 'Açıklama', 'Kayıt No'] });
-      ws2['!cols'] = [{ wch: 18 }, { wch: 90 }, { wch: 40 }, { wch: 14 }];
-      X.utils.book_append_sheet(wb, ws1, 'Personel');
-      X.utils.book_append_sheet(wb, ws2, 'Arşiv');
-      var b64 = X.write(wb, { bookType: 'xlsx', type: 'base64' });
-      var mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      return paylas('data:' + mime + ';base64,' + b64, 'minipuantaj_' + gunAnahtar() + '.xlsx', 'Mini Puantaj Excel', 'Excel dosyası indirildi.');
-    }).catch(function (e) { console.error(e); toast('Dışa aktarılamadı.'); });
-  }
-
-  function hucre(row, adlar) {
-    for (var i = 0; i < adlar.length; i++) {
-      for (var k in row) if (trKucuk(k).replace(/\s+/g, ' ').trim() === adlar[i]) return row[k];
-    }
-    return undefined;
-  }
-  function zamanCoz(v) {
-    if (v instanceof Date) return v;
-    var m = String(v || '').trim().match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
-    if (!m) return null;
-    return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0));
-  }
-  function durumCoz(metin) {
-    return String(metin || '').split(/\s*,\s*/).map(function (parca) {
-      var i = parca.lastIndexOf(' - '); if (i < 0) return null;
-      var ad = parca.slice(0, i).trim(), d = DURUM_GERI[trKucuk(parca.slice(i + 3).trim())];
-      return ad && d ? { ad: ad, durum: d } : null;
-    }).filter(Boolean);
-  }
-
-  function iceAktar(dosya) {
-    Promise.all([xlsxYukle(), dosya.arrayBuffer()]).then(function (r) {
-      var X = r[0], wb = X.read(r[1], { type: 'array', cellDates: true });
-      var sPers = wb.Sheets['Personel'] || wb.Sheets[wb.SheetNames[0]];
-      var sArs = wb.Sheets['Arşiv'];
-      var yeniP = [], yeniA = [];
-      var ayniAd = function (liste, ad) { return liste.some(function (q) { return trKucuk(q.ad) === trKucuk(ad); }); };
-      if (sPers) X.utils.sheet_to_json(sPers, { defval: '' }).forEach(function (row) {
-        var ad = String(hucre(row, ['adı soyadı', 'adi soyadi', 'ad soyad', 'isim soyisim', 'isim']) || row[Object.keys(row)[0]] || '').replace(/\s+/g, ' ').trim();
-        if (!ad || ayniAd(personel, ad) || ayniAd(yeniP, ad)) return;
-        var cins = CINS_GERI[trKucuk(String(hucre(row, ['cinsiyeti', 'cinsiyet']) || '').trim())] || 'Bilinmiyor';
-        var pasif = trKucuk(String(hucre(row, ['durumu', 'durum']) || '')).trim() === 'pasif';
-        yeniP.push({ id: uid(), ad: ad, cinsiyet: cins, pasif: pasif });
-      });
-      if (sArs) X.utils.sheet_to_json(sArs, { defval: '' }).forEach(function (row) {
-        var z = zamanCoz(hucre(row, ['gönderme zamanı'])); if (!z || isNaN(z)) return;
-        var kay = durumCoz(hucre(row, ['personel durumu'])); if (!kay.length) return;
-        var id = String(hucre(row, ['kayıt no']) || '').trim() || ('x' + z.getTime().toString(36));
-        if (arsiv.some(function (q) { return q.id === id; }) || yeniA.some(function (q) { return q.id === id; })) return;
-        kay.sort(function (a, b) { return (SIRA[a.durum] - SIRA[b.durum]) || adSirala(a, b); });
-        yeniA.push({ id: id, zaman: z.toISOString(), kayitlar: kay, aciklama: String(hucre(row, ['açıklama']) || '') });
-      });
-      if (!yeniP.length && !yeniA.length) { toast('Dosyada eklenecek yeni kayıt bulunamadı.'); return; }
-      onay('İçe Aktar', yeniP.length + ' yeni personel ve ' + yeniA.length +
-        ' yeni arşiv kaydı eklensin mi? (Var olan kayıtlar silinmez)', function () {
-        yeniP.forEach(function (p) { personel.push(p); taslak[p.id] = VARSAYILAN; });
-        yeniA.forEach(function (a) { arsiv.push(a); });
-        kaydetPersonel(); kaydetArsiv(); renderTanim();
-        toast(yeniP.length + ' personel, ' + yeniA.length + ' arşiv kaydı eklendi.');
-      });
-    }).catch(function (e) { console.error(e); toast('Dosya okunamadı. Excel (.xlsx) dosyası seçiniz.'); });
-  }
-  function indir(dataUrl, ad) { var a = document.createElement('a'); a.href = dataUrl; a.download = ad; document.body.appendChild(a); a.click(); a.remove(); }
-
   /* ---------- Satır etkileşimi: uzun basma + çift dokunma ---------- */
   function satirEtkilesim(tr, onLong, onDouble) {
     var timer = null, sx = 0, sy = 0, uzun = false, sonTik = 0;
@@ -444,110 +376,6 @@
   $('onayEvet').addEventListener('click', function () { var f = onayCb; onayCb = null; dialogKapat('dlgOnay'); if (f) f(); });
   $('onayHayir').addEventListener('click', function () { onayCb = null; dialogKapat('dlgOnay'); });
 
-  /* ---------- TANIMLAR ---------- */
-  var araKelimeler = [];
-  function aramaKelimeleri() {
-    return araKelimeler.concat($('txtAra').value.split(/\s+/).filter(Boolean)).map(trKucuk);
-  }
-  function renderChips() {
-    var box = $('araEtiketler'); box.innerHTML = '';
-    araKelimeler.forEach(function (k, i) {
-      var c = document.createElement('span'); c.className = 'chip';
-      c.innerHTML = '<span>' + esc(k) + '</span><button class="xbtn" title="Kelimeyi sil">✕</button>';
-      c.querySelector('button').addEventListener('click', function (e) {
-        e.stopPropagation(); araKelimeler.splice(i, 1); renderTanim();
-      });
-      box.appendChild(c);
-    });
-    $('txtAra').placeholder = araKelimeler.length ? '' : 'İsim soyisim ara...';
-  }
-  function araGirdi() {
-    var v = $('txtAra').value;
-    if (/\s/.test(v)) {
-      var parca = v.split(/\s+/), son = parca.pop();
-      parca.filter(Boolean).forEach(function (k) { araKelimeler.push(k); });
-      $('txtAra').value = son;
-    }
-    renderTanim();
-  }
-
-  function renderTanim() {
-    renderChips();
-    var kel = aramaKelimeleri();
-    var liste = personel.slice().sort(adSirala).filter(function (p) {
-      if (!kel.length) return true;
-      var ad = trKucuk(p.ad);
-      return kel.some(function (k) { return ad.indexOf(k) >= 0; });
-    });
-    var tb = $('tanimBody'); tb.innerHTML = '';
-    var bos = $('tanimEmpty');
-    bos.classList.toggle('hidden', liste.length > 0);
-    bos.innerHTML = personel.length ? 'Aramaya uyan personel bulunamadı.' : 'Henüz personel yok.<br>“Personel Ekle” ile ekleyebilirsiniz.';
-    liste.forEach(function (p) {
-      var tr = document.createElement('tr');
-      tr.innerHTML = '<td><span class="fit"><span class="pname' + (p.pasif ? ' pasif' : '') + '">' + esc(p.ad) + '</span>' +
-        (p.pasif ? '<span class="pasiftag">(PASİF)</span>' : '') + '</span></td>' +
-        '<td><span class="cins">' + esc(p.cinsiyet) + (IKON[p.cinsiyet] || '') + '</span></td>';
-      satirEtkilesim(tr, function (r, x, y) {
-        menuAc(x, y, function () {
-          onay('Personel Sil', '“' + p.ad + '” silinsin mi?', function () {
-            personel = personel.filter(function (q) { return q.id !== p.id; });
-            delete taslak[p.id];
-            silinen.push({ id: uid(), zaman: new Date().toISOString(), ad: p.ad, pasif: !!p.pasif });
-            kaydetPersonel(); kaydetSilinen(); renderTanim(); toast('Personel silindi ve arşive alındı.');
-          });
-        }, {
-          yazi: p.pasif ? 'Aktif Yap' : 'Pasif Yap',
-          fn: function () {
-            p.pasif = !p.pasif;
-            if (!p.pasif && !taslak[p.id]) taslak[p.id] = VARSAYILAN;
-            kaydetPersonel(); renderTanim();
-            toast('“' + p.ad + '” ' + (p.pasif ? 'pasif yapıldı.' : 'aktif yapıldı.'));
-          }
-        });
-      }, function () { personelDialog(p); });
-      tb.appendChild(tr);
-    });
-    sigdir(tb);
-  }
-
-  var duzenlenen = null;
-  function personelDialog(p) {
-    duzenlenen = p || null;
-    $('dlgPersonelTitle').textContent = p ? 'Personel Düzenle' : 'Personel Ekle';
-    $('inpAd').value = p ? p.ad : '';
-    $('inpCins').value = p ? p.cinsiyet : 'Bilinmiyor';
-    $('inpPasif').checked = !!(p && p.pasif);
-    $('dlgPersonelErr').textContent = '';
-    dialogAc('dlgPersonel');
-    setTimeout(function () { $('inpAd').focus(); }, 50);
-  }
-  function personelKaydet() {
-    var ad = $('inpAd').value.replace(/\s+/g, ' ').trim();
-    if (!ad) { $('dlgPersonelErr').textContent = 'Adı soyadı boş olamaz.'; return; }
-    var ayni = personel.some(function (q) { return q !== duzenlenen && trKucuk(q.ad) === trKucuk(ad); });
-    if (ayni) { $('dlgPersonelErr').textContent = 'Bu isimde bir personel zaten var.'; return; }
-    var pasif = $('inpPasif').checked;
-    if (duzenlenen) { duzenlenen.ad = ad; duzenlenen.cinsiyet = $('inpCins').value; duzenlenen.pasif = pasif; }
-    else { var y = { id: uid(), ad: ad, cinsiyet: $('inpCins').value, pasif: pasif }; personel.push(y); taslak[y.id] = VARSAYILAN; }
-    kaydetPersonel(); dialogKapat('dlgPersonel'); renderTanim();
-  }
-  $('btnPersonelKaydet').addEventListener('click', personelKaydet);
-  $('inpAd').addEventListener('keydown', function (e) { if (e.key === 'Enter') personelKaydet(); });
-  $('btnPersonelEkle').addEventListener('click', function () { personelDialog(null); });
-  $('txtAra').addEventListener('input', araGirdi);
-  $('txtAra').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && $('txtAra').value.trim()) { araKelimeler.push($('txtAra').value.trim()); $('txtAra').value = ''; renderTanim(); }
-    else if (e.key === 'Backspace' && !$('txtAra').value && araKelimeler.length) { araKelimeler.pop(); renderTanim(); }
-  });
-  $('araKutu').addEventListener('click', function () { $('txtAra').focus(); });
-  $('btnAraTemizle').addEventListener('click', function (e) { e.stopPropagation(); araKelimeler = []; $('txtAra').value = ''; renderTanim(); });
-  $('btnSilinenArsiv').addEventListener('click', function () { ekranGoster('scrSilinen'); });
-  $('btnTanimKapat').addEventListener('click', function () { ekranGoster('scrMain'); });
-  $('btnDisaAktar').addEventListener('click', disaAktar);
-  $('btnIceAktar').addEventListener('click', function () { $('inpIceAktar').value = ''; $('inpIceAktar').click(); });
-  $('inpIceAktar').addEventListener('change', function () { if (this.files && this.files[0]) iceAktar(this.files[0]); });
-
   /* ---------- ARŞİV ---------- */
   var DURUM_BASLIK = { 'GELMEDİ': 'Gelmedi', 'GELDİ': 'Geldi', 'BİLİNMİYOR': 'Bilinmiyor' };
   function durumHtml(a) {
@@ -588,35 +416,6 @@
   }
   function ilkSec(kok) { var ilk = kok.querySelector('tbody.kayit, tbody > tr'); if (ilk) satirSec(ilk); }
 
-  /* ---------- SİLİNEN PERSONEL ARŞİVİ ---------- */
-  function renderSilinen() {
-    var liste = silinen.slice().sort(function (a, b) { return a.zaman < b.zaman ? 1 : a.zaman > b.zaman ? -1 : 0; });
-    var tb = $('silinenBody'); tb.innerHTML = '';
-    $('silinenEmpty').classList.toggle('hidden', liste.length > 0);
-    liste.forEach(function (k) {
-      var d = new Date(k.zaman), z = tarihYaz(d) + ' ' + saatYaz(d);
-      var tr = document.createElement('tr');
-      tr.innerHTML = '<td><b>' + z + '</b></td><td><span class="fit"><span class="pname">' + esc(k.ad) + '</span>' +
-        '</span>' + (k.pasif ? '<span class="pasifken">(PASİFKEN)</span>' : '') + '</td>';
-      satirEtkilesim(tr, function (r, x, y) {
-        menuAc(x, y, function () {
-          onay('Kayıt Sil', '“' + k.ad + '” silme kaydı arşivden silinsin mi?', function () {
-            silinen = silinen.filter(function (q) { return q.id !== k.id; }); kaydetSilinen(); renderSilinen(); toast('Kayıt silindi.');
-          });
-        });
-      }, function () {});
-      tb.appendChild(tr);
-    });
-    ilkSec(tb.parentNode);
-    sigdir(tb);
-  }
-  $('btnSilinenTumSil').addEventListener('click', function () {
-    if (!silinen.length) { toast('Silinecek kayıt yok.'); return; }
-    onay('Tümünü Sil', 'Tüm arşiv kayıtları (' + silinen.length + ' adet) silinsin mi?', function () {
-      silinen = []; kaydetSilinen(); renderSilinen(); toast('Tüm arşiv silindi.');
-    });
-  });
-  $('btnSilinenKapat').addEventListener('click', function () { ekranGoster('scrTanim'); });
   $('btnArsivTumSil').addEventListener('click', function () {
     if (!arsiv.length) { toast('Silinecek kayıt yok.'); return; }
     onay('Tümünü Sil', 'Tüm arşiv kayıtları (' + arsiv.length + ' adet) silinsin mi?', function () {
@@ -626,7 +425,6 @@
   $('btnArsivKapat').addEventListener('click', function () { ekranGoster('scrMain'); });
 
   /* ---------- Ana ekran düğmeleri ---------- */
-  $('btnTanimlar').addEventListener('click', function () { ekranGoster('scrTanim'); });
   $('btnArsiv').addEventListener('click', function () { ekranGoster('scrArsiv'); });
   $('btnGonder').addEventListener('click', gonder);
   $('txtAciklama').addEventListener('input', function () { taslakAciklama = $('txtAciklama').value; });
@@ -638,7 +436,6 @@
       if (!$('popMenu').classList.contains('hidden')) { menuKapat(); return; }
       var d = acikDialog();
       if (d) { if (d.id === 'dlgOnay') onayCb = null; dialogKapat(d.id); return; }
-      if (aktifEkran === 'scrSilinen') { ekranGoster('scrTanim'); return; }
       if (aktifEkran !== 'scrMain') { ekranGoster('scrMain'); return; }
       onay('Çıkış', 'Uygulamadan çıkılsın mı?', function () { App.exitApp(); });
     });
@@ -646,12 +443,14 @@
 
   /* ---------- Gün dönümü takibi ---------- */
   setInterval(gunKontrol, 20000);
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) gunKontrol(); });
+  // uygulamaya dönülünce (ör. Personel programından) liste yenilenir
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) { gunKontrol(); personelYenile(); } });
   window.addEventListener('focus', gunKontrol);
 
   // diğer sekmede/pencerede yapılan değişiklikleri al
-  window.addEventListener('storage', function () {
-    personel = oku(K_PERSONEL, []); arsiv = oku(K_ARSIV, []); silinen = oku(K_SILINEN, []);
+  window.addEventListener('storage', function (e) {
+    if (e.key === 'ps_personel') { personelYenile(); return; }
+    arsiv = oku(K_ARSIV, []);
     ekranGoster(aktifEkran);
   });
 
@@ -661,4 +460,5 @@
 
   gunuYukle();
   ekranGoster('scrMain');
+  personelYenile();
 })();
