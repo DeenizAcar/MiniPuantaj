@@ -123,7 +123,11 @@
   window.addEventListener('resize', function () { clearTimeout(sigT); sigT = setTimeout(function () { sigdir(); }, 150); });
 
   function raporListesi() {
-    return aktifPersonel().map(function (p) { return { ad: p.ad, durum: taslak[p.id] || VARSAYILAN }; })
+    // Seçiniz kalanlar rapora Bilinmiyor olarak yansır; kayıtlı veri Seçiniz olarak kalır
+    return aktifPersonel().map(function (p) {
+      var d = taslak[p.id] || VARSAYILAN;
+      return { ad: p.ad, durum: d === SECINIZ ? 'BİLİNMİYOR' : d };
+    })
       .sort(function (a, b) { return (SIRA[a.durum] - SIRA[b.durum]) || adSirala(a, b); });
   }
 
@@ -136,8 +140,7 @@
     if (secilmemis.length) {
       onay('Gönderim Onayı', 'Durumunu seçmediğiniz personeller mevcut,<br>Bu personeller için <b>Bilinmiyor</b> bilgisi ile raporu göndermek istiyor musunuz?',
         function () {
-          // seçilmeyenler Bilinmiyor seçilmiş gibi raporlanır ve öyle kaydedilir
-          secilmemis.forEach(function (p) { taslak[p.id] = 'BİLİNMİYOR'; });
+          // seçilmeyenler raporda Bilinmiyor görünür (raporListesi), ekranda ve kayıtta Seçiniz kalır
           gonderAsil();
         }, true);
       return;
