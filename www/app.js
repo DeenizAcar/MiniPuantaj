@@ -3,10 +3,10 @@
   'use strict';
 
   var SECINIZ = 'Seçiniz';
-  var DURUMLAR = [SECINIZ, 'GELMEDİ', 'GELDİ', 'BİLİNMİYOR'];
+  var DURUMLAR = [SECINIZ, 'GELMEDİ', 'GELDİ', 'BİLİNMİYOR', 'İZİNLİ', 'RAPORLU'];
   var VARSAYILAN = SECINIZ;
-  var SIRA = { 'GELMEDİ': 0, 'BİLİNMİYOR': 1, 'GELDİ': 2 };
-  var RENK = { 'Seçiniz': 'none', 'GELMEDİ': 'red', 'GELDİ': 'green', 'BİLİNMİYOR': 'gray' };
+  var SIRA = { 'GELMEDİ': 0, 'RAPORLU': 1, 'İZİNLİ': 2, 'BİLİNMİYOR': 3, 'GELDİ': 4 };
+  var RENK = { 'Seçiniz': 'none', 'GELMEDİ': 'red', 'GELDİ': 'green', 'BİLİNMİYOR': 'gray', 'İZİNLİ': 'blue', 'RAPORLU': 'yellow' };
   var GUNLER = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 
   var K_PERSONEL = 'mp_kaynak_personel', K_GUNLUK = 'mp_gunluk', K_ARSIV = 'mp_arsiv';
@@ -276,7 +276,9 @@
 
   function top3d(x, cx, cy, r, durum) {
     var renk = { 'GELMEDİ': ['#ffb3b3', '#ff3b3b', '#c40000', '#7a0000'], 'GELDİ': ['#c8ffc8', '#2ecc40', '#138a1f', '#0a4f10'],
-      'BİLİNMİYOR': ['#ffffff', '#b5b5b5', '#7d7d7d', '#444444'] }[durum];
+      'BİLİNMİYOR': ['#ffffff', '#b5b5b5', '#7d7d7d', '#444444'],
+      'İZİNLİ': ['#c6e2ff', '#3d8bff', '#0b56c4', '#06306e'],
+      'RAPORLU': ['#fff7c2', '#ffd726', '#d9a400', '#8a6400'] }[durum];
     x.save();
     x.shadowColor = 'rgba(0,0,0,.35)'; x.shadowBlur = 6; x.shadowOffsetY = 3;
     var g = x.createRadialGradient(cx - r * 0.36, cy - r * 0.44, r * 0.05, cx, cy, r);
@@ -308,6 +310,7 @@
       toast(indirMesaji || 'Rapor kaydedildi ve indirildi.');
     });
   }
+  function indir(dataUrl, ad) { var a = document.createElement('a'); a.href = dataUrl; a.download = ad; document.body.appendChild(a); a.click(); a.remove(); }
 
   /* ---------- Satır etkileşimi: uzun basma + çift dokunma ---------- */
   function satirEtkilesim(tr, onLong, onDouble) {
@@ -377,7 +380,7 @@
   $('onayHayir').addEventListener('click', function () { onayCb = null; dialogKapat('dlgOnay'); });
 
   /* ---------- ARŞİV ---------- */
-  var DURUM_BASLIK = { 'GELMEDİ': 'Gelmedi', 'GELDİ': 'Geldi', 'BİLİNMİYOR': 'Bilinmiyor' };
+  var DURUM_BASLIK = { 'GELMEDİ': 'Gelmedi', 'GELDİ': 'Geldi', 'BİLİNMİYOR': 'Bilinmiyor', 'İZİNLİ': 'İzinli', 'RAPORLU': 'Raporlu' };
   function durumHtml(a) {
     return a.kayitlar.map(function (k) { return esc(k.ad) + '(<b>' + (DURUM_BASLIK[k.durum] || esc(k.durum)) + '</b>)'; }).join(', ');
   }

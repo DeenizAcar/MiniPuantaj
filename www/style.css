@@ -56,6 +56,8 @@ select,input,textarea{font:inherit;color:var(--text)}
 .dot.red{background:radial-gradient(circle at 32% 28%, #ffb3b3 0%, #ff3b3b 30%, #c40000 70%, #7a0000 100%)}
 .dot.green{background:radial-gradient(circle at 32% 28%, #c8ffc8 0%, #2ecc40 30%, #138a1f 70%, #0a4f10 100%)}
 .dot.gray{background:radial-gradient(circle at 32% 28%, #ffffff 0%, #b5b5b5 30%, #7d7d7d 70%, #444 100%)}
+.dot.blue{background:radial-gradient(circle at 32% 28%, #c6e2ff 0%, #3d8bff 30%, #0b56c4 70%, #06306e 100%)}
+.dot.yellow{background:radial-gradient(circle at 32% 28%, #fff7c2 0%, #ffd726 30%, #d9a400 70%, #8a6400 100%)}
 
 .empty{padding:40px 20px;text-align:center;color:var(--muted)}
 
